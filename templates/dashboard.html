@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chatbot</title>
+    <style>
+        #chatbot-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #007bff;
+            color: #fff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 30px;
+            border: none;
+            cursor: pointer;
+        }
+        #chatbot-modal {
+            display: none;
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 300px;
+            height: 400px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #chatbot-header {
+            background: #007bff;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+        #chatbot-messages {
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        #chatbot-input {
+            display: flex;
+        }
+        #chatbot-input input {
+            flex: 1;
+            border: none;
+            padding: 10px;
+        }
+        #chatbot-input button {
+            border: none;
+            background: #007bff;
+            color: white;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <button id="chatbot-icon">💬</button>
+    <div id="chatbot-modal">
+        <div id="chatbot-header">Chat with us</div>
+        <div id="chatbot-messages"></div>
+        <div id="chatbot-input">
+            <input type="text" id="chatbot-user-input" placeholder="Type message...">
+            <button id="chatbot-send">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatbotIcon = document.getElementById('chatbot-icon');
+        const chatbotModal = document.getElementById('chatbot-modal');
+        const chatbotMessages = document.getElementById('chatbot-messages');
+        const chatbotUserInput = document.getElementById('chatbot-user-input');
+        const chatbotSend = document.getElementById('chatbot-send');
+
+        const userName = "{{ user_name }}";
+        const orders = {{ orders | tojson }};
+        const token = "{{ token }}";
+
+        chatbotIcon.addEventListener('click', () => {
+            chatbotModal.style.display = chatbotModal.style.display === 'none' ? 'block' : 'none';
+            if (!chatbotMessages.innerHTML.trim()) {
+                addMessage('bot', `Hi ${userName}, how can I help you today?`);
+            }
+        });
+
+        chatbotSend.addEventListener('click', () => {
+            const message = chatbotUserInput.value.trim();
+            if (!message) return;
+            addMessage('user', message);
+            chatbotUserInput.value = '';
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, user_name: userName, orders, token })
+            })
+            .then(res => res.json())
+            .then(data => {
+                addMessage('bot', data.reply);
+                if (data.actions) {
+                    data.actions.forEach(action => {
+                        const btn = document.createElement('button');
+                        btn.textContent = action.label;
+                        btn.onclick = () => {
+                            fetch('/action', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: action.type, order_id: action.order_id })
+                            })
+                            .then(r => r.json())
+                            .then(d => addMessage('bot', d.message));
+                        };
+                        chatbotMessages.appendChild(btn);
+                    });
+                }
+            });
+        });
+
+        function addMessage(sender, text) {
+            const div = document.createElement('div');
+            div.textContent = `${sender === 'bot' ? 'Bot' : 'You'}: ${text}`;
+            chatbotMessages.appendChild(div);
+            chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+        }
+    </script>
+</body>
+</html>
