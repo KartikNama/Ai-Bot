@@ -4,3 +4,4 @@ cohere
 requests
 PyJWT
 gunicorn
+flask_cors
